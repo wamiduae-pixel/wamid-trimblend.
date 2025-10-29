@@ -1,51 +1,46 @@
-name: Android Release APK
+name: Android Release (signed)
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - 'v*.*.*'
+
+env:
+  JAVA_VERSION: "17"
+  ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      JAVA_VERSION: '17'
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
 
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: Install Android SDK components
+      # Install exact Android packages (note the YAML block with |)
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: |
+            platform-tools
             platforms;android-34
             build-tools;34.0.0
 
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
+      - name: Clean
+        run: ./gradlew clean
+
       - name: Build Release (unsigned)
         run: ./gradlew assembleRelease --stacktrace
 
+      # Sign using your Base64 keystore + secrets
       - name: Sign APK
         uses: r0adkll/sign-android-release@v1
         with:
@@ -57,10 +52,15 @@ jobs:
 
       - name: Verify signed APK
         run: |
-          /build-tools/34.0.0/apksigner verify --print-certs app/build/outputs/apk/release/*.apk
+          "$ANDROID_SDK_ROOT/build-tools/34.0.0/apksigner" verify --print-certs app/build/outputs/apk/release/*.apk
 
       - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
           name: wamid-trimblend-release-apk
-          path: app/build/outputs/apk/release/*release*.apk
+          path: app/build/outputs/apk/release/*.apk
+
+      # Optional: print installed packages for debugging
+      - name: List installed SDK packages
+        run: |
+          "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --list || true
