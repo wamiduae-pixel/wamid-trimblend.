@@ -1,0 +1,43 @@
+stages:
+  - build
+  - sign
+  - artifacts
+
+variables:
+  JAVA_HOME: "/usr/lib/jvm/java-17-openjdk-amd64"
+  ANDROID_HOME: "/sdk"
+  ANDROID_SDK_ROOT: "/sdk"
+
+image: cirrusci/android-sdk:34
+
+before_script:
+  - export PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/tools:$ANDROID_HOME/tools/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/build-tools/34.0.0:$PATH"
+  - chmod +x gradlew
+
+build_release:
+  stage: build
+  script:
+    - sdkmanager --licenses || true
+    - sdkmanager "platforms;android-34" "build-tools;34.0.0"
+    - ./gradlew assembleRelease --stacktrace
+  artifacts:
+    paths:
+      - app/build/outputs/apk/release/
+    expire_in: 1 week
+  only:
+    - tags
+    - manual
+
+sign_release:
+  stage: sign
+  needs: ["build_release"]
+  rules:
+    - if: '$SIGNING_KEYSTORE_BASE64'
+  script:
+    - echo "$SIGNING_KEYSTORE_BASE64" | base64 -d > keystore.jks
+    - jarsigner -sigalg SHA256withRSA -digestalg SHA-256         -keystore keystore.jks -storepass "$SIGNING_KEYSTORE_PASSWORD" -keypass "$SIGNING_KEY_PASSWORD"         app/build/outputs/apk/release/app-release-unsigned.apk "$SIGNING_KEY_ALIAS" || true
+    # If Gradle already produced a signed apk, the above may not be needed. Keep flexible.
+  artifacts:
+    paths:
+      - app/build/outputs/apk/release/
+    expire_in: 1 week

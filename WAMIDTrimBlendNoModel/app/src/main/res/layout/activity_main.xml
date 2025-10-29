@@ -1,0 +1,82 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:padding="12dp"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+
+    <Button android:id="@+id/btnBase" android:text="Pick Base Photo"
+        android:layout_width="match_parent" android:layout_height="wrap_content"/>
+    <Button android:id="@+id/btnMask" android:text="Pick Trim Mask (optional)"
+        android:layout_width="match_parent" android:layout_height="wrap_content"/>
+    <Button android:id="@+id/btnOverlay" android:text="Pick Overlay (carbon+letters)"
+        android:layout_width="match_parent" android:layout_height="wrap_content"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingTop="8dp">
+        <Button
+            android:id="@+id/btnDetect"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Polygon Mode" />
+        <Button
+            android:id="@+id/btnRefine"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Refine Mask" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+        <ImageView
+            android:id="@+id/imgPreview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:adjustViewBounds="true"/>
+        <com.wamid.trimblend.ui.MaskOverlayView
+            android:id="@+id/maskOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="true"/>
+        <com.wamid.trimblend.ui.BrushRefineView
+            android:id="@+id/brushView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone"/>
+        <com.wamid.trimblend.ui.PolygonMaskView
+            android:id="@+id/polygonView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="visible"/>
+    </FrameLayout>
+
+    <SeekBar android:id="@+id/seekScale" android:max="200" android:progress="100"
+        android:layout_width="match_parent" android:layout_height="wrap_content"/>
+    <SeekBar android:id="@+id/seekRotate" android:max="360" android:progress="180"
+        android:layout_width="match_parent" android:layout_height="wrap_content"/>
+    <SeekBar android:id="@+id/seekOpacity" android:max="100" android:progress="90"
+        android:layout_width="match_parent" android:layout_height="wrap_content"/>
+
+    <LinearLayout android:orientation="horizontal"
+        android:layout_width="match_parent" android:layout_height="wrap_content">
+        <Button android:id="@+id/btnCover" android:text="Fit: Cover"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"/>
+        <Button android:id="@+id/btnContain" android:text="Fit: Contain"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"/>
+    </LinearLayout>
+
+    <LinearLayout android:orientation="horizontal"
+        android:layout_width="match_parent" android:layout_height="wrap_content">
+        <Button android:id="@+id/btnToneMatch" android:text="Tone Match: ON"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"/>
+        <Button android:id="@+id/btnAo" android:text="AO: 0.15"
+            android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"/>
+    </LinearLayout>
+
+    <Button android:id="@+id/btnRender" android:text="Render & Save"
+        android:layout_width="match_parent" android:layout_height="wrap_content"/>
+</LinearLayout>

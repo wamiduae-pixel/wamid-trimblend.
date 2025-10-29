@@ -1,0 +1,28 @@
+- pipeline: "Build Android APK"
+  on: "CLICK"
+  refs:
+    - "refs/heads/main"
+  actions:
+    - action: "Build APK"
+      type: "ANDROID_BUILD"
+      inputs:
+        gradle_task: "assembleRelease"
+        android_version: "34"
+        build_tools: "34.0.0"
+        java_version: "17"
+      caching:
+        - "~/.gradle/caches"
+        - "~/.gradle/wrapper"
+    - action: "Sign APK"
+      type: "SIGN_ANDROID_APP"
+      inputs:
+        keystore: "@@SIGNING_KEYSTORE@@"
+        keystore_password: "${SIGNING_KEYSTORE_PASSWORD}"
+        key_alias: "${SIGNING_KEY_ALIAS}"
+        key_password: "${SIGNING_KEY_PASSWORD}"
+        file: "app/build/outputs/apk/release/app-release.apk"
+    - action: "Artifacts"
+      type: "TRANSFER"
+      inputs:
+        source: "app/build/outputs/apk/release/*.apk"
+        target: "/builds/"
