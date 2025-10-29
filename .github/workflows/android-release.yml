@@ -12,6 +12,7 @@ jobs:
     env:
       JAVA_VERSION: '17'
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,7 +46,20 @@ jobs:
       - name: Build Release (unsigned)
         run: ./gradlew assembleRelease --stacktrace
 
-      - name: Upload artifact
+      - name: Sign APK
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+          alias: ${{ secrets.SIGNING_KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.SIGNING_KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+
+      - name: Verify signed APK
+        run: |
+          /build-tools/34.0.0/apksigner verify --print-certs app/build/outputs/apk/release/*.apk
+
+      - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
           name: wamid-trimblend-release-apk
