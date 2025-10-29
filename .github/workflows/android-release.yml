@@ -1,27 +1,92 @@
+
+name: Android Release (Signed)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+
 jobs:
-  android-build:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Set up Java 17
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: '17'
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
 
-      - name: Install Android SDK packages
+      # Primary Android SDK setup (uses line-separated packages to avoid concatenation bug)
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          # get latest stable cmdline-tools; the action will handle replacements
-          cmdline-tools-version: latest
           packages: |
-            platform-tools
-            build-tools;34.0.0
             platforms;android-34
-          # (if you see license prompts in your logs, add the next line)
-          log-accepted-licenses: true
+            build-tools;34.0.0
 
-      - name: Build Debug
-        run: ./gradlew assembleDebug
+      # Fallback installer in case the above step couldn't find packages (safe to run multiple times)
+      - name: Ensure cmdline-tools present & accept licenses
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+
+      - name: Install missing SDK packages (fallback)
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          # Re-install commandline-tools if the preinstalled one is an odd version
+          if [[ ! -x "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" ]]; then
+            mkdir -p "${ANDROID_HOME}/cmdline-tools"
+            cd "${ANDROID_HOME}/cmdline-tools"
+            curl -L -o commandlinetools.zip "https://dl.google.com/android/repository/commandlinetools-linux-12266719_latest.zip"
+            rm -rf latest; mkdir -p latest
+            unzip -q -o commandlinetools.zip -d latest
+          fi
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+          yes | "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"             "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Make Gradle executable
+        run: chmod +x ./gradlew
+
+      - name: Build (APK + AAB)
+        run: ./gradlew --stacktrace --no-daemon clean assembleRelease bundleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: |
+            **/build/outputs/apk/release/*.apk
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: |
+            **/build/outputs/bundle/release/*.aab
+
+      # Optional signing via environment secrets; keep step for visibility
+      - name: Decode signing keystore (optional)
+        if: ${{ secrets.SIGNING_KEYSTORE_BASE64 != '' }}
+        shell: bash
+        run: |
+          echo "${{ secrets.SIGNING_KEYSTORE_BASE64 }}" | base64 -d > "${HOME}/release.keystore"
+          echo "RELEASE_STORE_FILE=${HOME}/release.keystore" >> $GITHUB_ENV
+          echo "RELEASE_STORE_PASSWORD=${{ secrets.SIGNING_KEYSTORE_PASSWORD }}" >> $GITHUB_ENV
+          echo "RELEASE_KEY_ALIAS=${{ secrets.SIGNING_KEY_ALIAS }}" >> $GITHUB_ENV
+          echo "RELEASE_KEY_PASSWORD=${{ secrets.SIGNING_KEY_PASSWORD }}" >> $GITHUB_ENV
